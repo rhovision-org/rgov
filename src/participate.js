@@ -647,13 +647,25 @@ function runControl(
           clock(),
           obs.getBlocks(1),
         ]);
-        const ethereum = await getEthProvider();
+        // The shard a deploy must name is the chain's own — `/testnet`, `/playground`, `/root`.
+        // The node reports the full id in /api/status and refuses a deploy that names another
+        // one, so read it here rather than assuming a default. It is part of the signed bytes
+        // (deploySig serializes DeployDataProto field 11).
+        const status = await fetch(
+          `${NETWORKS[state.network].observerBase}/api/status`,
+        ).then((reply) => reply.json());
+        if (!status.shardId) {
+          throw new Error('the node reported no shardId; cannot build a deploy');
+        }
+
+          const ethereum = await getEthProvider();
         return signMetaMask(
           {
             term,
             ...maxFee,
             timestamp,
             validAfterBlockNumber: recent.blockNumber,
+            shardId: status.shardId,
           },
           ethereum,
         );
